@@ -2,32 +2,34 @@ import React, { PureComponent, Fragment, useState, useEffect } from 'react';
 import { Button, message, Modal } from 'antd';
 import config from '@/utils/config';
 import { PageContainer } from '@ant-design/pro-layout';
+import { Controlled as CodeMirror } from 'react-codemirror2';
 import { request } from '@/utils/http';
-import ReactDiffViewer from 'react-diff-viewer';
-import './index.less';
 
 const Crontab = () => {
   const [width, setWidth] = useState('100%');
   const [marginLeft, setMarginLeft] = useState(0);
   const [marginTop, setMarginTop] = useState(-72);
   const [value, setValue] = useState('');
-  const [sample, setSample] = useState('');
   const [loading, setLoading] = useState(true);
 
   const getConfig = () => {
-    request.get(`${config.apiPrefix}config/config`).then((data) => {
-      setValue(data.data);
-    });
-  };
-
-  const getSample = () => {
     setLoading(true);
     request
-      .get(`${config.apiPrefix}config/sample`)
+      .get(`${config.apiPrefix}config/extra`)
       .then((data) => {
-        setSample(data.data);
+        setValue(data.data);
       })
       .finally(() => setLoading(false));
+  };
+
+  const updateConfig = () => {
+    request
+      .post(`${config.apiPrefix}save`, {
+        data: { content: value, name: 'extra.sh' },
+      })
+      .then((data) => {
+        message.success(data.msg);
+      });
   };
 
   useEffect(() => {
@@ -41,14 +43,17 @@ const Crontab = () => {
       setMarginTop(-72);
     }
     getConfig();
-    getSample();
   }, []);
 
   return (
     <PageContainer
       className="ql-container-wrapper"
-      title="对比工具"
-      loading={loading}
+      title="extra.sh"
+      extra={[
+        <Button key="1" type="primary" onClick={updateConfig}>
+          保存
+        </Button>,
+      ]}
       header={{
         style: {
           padding: '4px 16px 4px 15px',
@@ -62,37 +67,20 @@ const Crontab = () => {
         },
       }}
     >
-      <ReactDiffViewer
-        styles={{
-          diffContainer: {
-            overflowX: 'auto',
-            minWidth: 768,
-          },
-          diffRemoved: {
-            overflowX: 'auto',
-            maxWidth: 300,
-          },
-          diffAdded: {
-            overflowX: 'auto',
-            maxWidth: 300,
-          },
-          line: {
-            wordBreak: 'break-word',
-          },
+      <CodeMirror
+        value={value}
+        options={{
+          lineNumbers: true,
+          lineWrapping: true,
+          styleActiveLine: true,
+          matchBrackets: true,
+          mode: 'shell',
         }}
-        oldValue={value}
-        newValue={sample}
-        splitView={true}
-        leftTitle="config.sh"
-        rightTitle="config.sample.sh"
-        disableWordDiff={true}
+        onBeforeChange={(editor, data, value) => {
+          setValue(value);
+        }}
+        onChange={(editor, data, value) => {}}
       />
-      {/* <CodeDiff
-        style={{ height: 'calc(100vh - 72px)', overflowY: 'auto' }}
-        outputFormat="side-by-side"
-        oldStr={value}
-        newStr={sample}
-      /> */}
     </PageContainer>
   );
 };
